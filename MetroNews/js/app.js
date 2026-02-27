@@ -219,15 +219,19 @@ const RSS_FEEDS = [
 ];
 
 // Three CORS proxies tried in order; first success wins.
-// allorigins returns JSON {contents}; codetabs + corsproxy return raw XML.
+// CORS proxies tried in order; first success wins (both return raw XML).
 const CORS_PROXIES = [
-  u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
   u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
   u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
 ];
 
 function parseRSSXml(xml) {
-  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  // RSS feeds often embed HTML named entities (e.g. &nbsp; &mdash;) that are
+  // undefined in XML — DOMParser rejects the whole document. Strip them while
+  // keeping the five standard XML entities and numeric references (&#160; etc).
+  const clean = xml.replace(/&(?!(amp|lt|gt|apos|quot);|#(\d+|x[\da-fA-F]+);)[a-zA-Z]\w*;/g, '');
+
+  const doc = new DOMParser().parseFromString(clean, 'text/xml');
   if (doc.querySelector('parsererror')) throw new Error('XML parse error');
   return Array.from(doc.querySelectorAll('item')).slice(0, 5).map(item => {
     const linkEl = item.querySelector('link');
@@ -247,10 +251,7 @@ async function fetchFeedItems(feedUrl) {
     try {
       const resp = await fetch(makeUrl(feedUrl), { signal: AbortSignal.timeout(9000) });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const text = await resp.text();
-      // allorigins wraps in JSON; codetabs returns raw XML — handle both
-      let xml;
-      try { xml = JSON.parse(text).contents; } catch { xml = text; }
+      const xml = await resp.text();
       if (!xml) throw new Error('empty');
       const items = parseRSSXml(xml);
       if (!items.length) throw new Error('no items');
