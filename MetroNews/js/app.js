@@ -233,6 +233,26 @@ const CORS_PROXIES = [
   u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
 ];
 
+// =====================================================
+// === SHARED CACHE (localStorage, 5-minute TTL)    ===
+// =====================================================
+
+const CACHE_TTL = 5 * 60 * 1000;
+
+function getCached(key) {
+  try {
+    const entry = JSON.parse(localStorage.getItem('nsd:' + key));
+    if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.data;
+  } catch (_) {}
+  return null;
+}
+
+function setCache(key, data) {
+  try {
+    localStorage.setItem('nsd:' + key, JSON.stringify({ ts: Date.now(), data }));
+  } catch (_) {}
+}
+
 // Extract a single field from an RSS <item> block.
 // Handles both plain text and CDATA-wrapped values.
 function rssField(block, tag) {
@@ -267,6 +287,10 @@ function parseRSSXml(xml) {
 }
 
 async function fetchFeedItems(feedUrl) {
+  const cacheKey = 'feed:' + feedUrl;
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
+
   for (const makeUrl of CORS_PROXIES) {
     try {
       const resp = await fetch(makeUrl(feedUrl), { signal: AbortSignal.timeout(9000) });
@@ -275,6 +299,7 @@ async function fetchFeedItems(feedUrl) {
       if (!xml) throw new Error('empty');
       const items = parseRSSXml(xml);
       if (!items.length) throw new Error('no items');
+      setCache(cacheKey, items);
       return items;
     } catch (_) {
       // fall through to next proxy
@@ -486,6 +511,10 @@ function timeAgo(dateStr) {
 
 // Fetch Reddit hot posts via JSON API using social proxies
 async function fetchRedditPosts(subreddit) {
+  const cacheKey = 'reddit:' + subreddit;
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
+
   const url = `https://www.reddit.com/r/${subreddit}/hot.json?limit=7&raw_json=1`;
   for (const makeUrl of SOCIAL_PROXIES) {
     try {
@@ -501,7 +530,10 @@ async function fetchRedditPosts(subreddit) {
           pubDate: new Date(c.data.created_utc * 1000).toISOString()
         }))
         .slice(0, 5);
-      if (posts.length) return posts;
+      if (posts.length) {
+        setCache(cacheKey, posts);
+        return posts;
+      }
     } catch (_) {}
   }
   throw new Error('reddit unavailable');
@@ -563,12 +595,84 @@ async function loadSocialFeeds() {
 }
 
 
-// Initialise on DOM ready
+// =====================================================
+// === 4. DYNAMIC CARD SECTIONS — Google News RSS   ===
+// =====================================================
+// Any element with data-gnews-query="..." gets filled with
+// live Google News headlines on load and on visibility refresh.
+
+async function loadDynamicCardSection(el) {
+  const query = el.dataset.gnewsQuery;
+  if (!query) return;
+
+  const feedUrl = `https://news.google.com/rss/search?q=${query}&hl=en-CA&gl=CA&ceid=CA:en`;
+  el.innerHTML = '<p class="rss-loading">Loading local news&#8230;</p>';
+
+  try {
+    const items = await fetchFeedItems(feedUrl);
+    if (!items.length) throw new Error('no items');
+
+    let html = '';
+    items.slice(0, 3).forEach((item, i) => {
+      const raw      = item.title.replace(/<[^>]+>/g, '').trim();
+      // Google News titles: "Headline - Source Name"
+      const dashIdx  = raw.lastIndexOf(' - ');
+      const headline = dashIdx > 0 ? raw.slice(0, dashIdx) : raw;
+      const source   = dashIdx > 0 ? raw.slice(dashIdx + 3) : '';
+      const date     = item.pubDate
+        ? new Date(item.pubDate).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })
+        : '';
+      html += `<article class="card${i === 0 ? ' card-lead' : ''}">
+        <div class="card-tag">LIVE</div>
+        <h3><a href="${item.link}" target="_blank" rel="noopener">${headline}</a></h3>
+        <p class="byline">${[source, date].filter(Boolean).join(' \u00b7 ')}</p>
+      </article>`;
+    });
+
+    el.innerHTML = html;
+  } catch (_) {
+    el.innerHTML = '<p class="rss-loading">Local news temporarily unavailable.</p>';
+  }
+}
+
+
+// =====================================================
+// === INITIALISE ON DOM READY                      ===
+// =====================================================
+
+const REFRESH_MS = 15 * 60 * 1000;   // 15 minutes
+let _lastRSSFetch    = 0;
+let _lastSocialFetch = 0;
+
+function runRSSFeeds()    { _lastRSSFetch    = Date.now(); loadRSSFeeds(); }
+function runSocialFeeds() { _lastSocialFetch = Date.now(); loadSocialFeeds(); }
+
 document.addEventListener('DOMContentLoaded', function () {
+  // Weather — already has its own 10-min interval
   loadLiveWeather();
   setInterval(loadLiveWeather, 10 * 60 * 1000);
-  loadRSSFeeds();
-  loadSocialFeeds();
+
+  // RSS news feeds — load now, then every 15 min
+  runRSSFeeds();
+  setInterval(runRSSFeeds, REFRESH_MS);
+
+  // Social / Reddit feeds — load now, then every 15 min
+  runSocialFeeds();
+  setInterval(runSocialFeeds, REFRESH_MS);
+
+  // Dynamic card sections (data-gnews-query attributes)
+  document.querySelectorAll('[data-gnews-query]').forEach(loadDynamicCardSection);
+
+  // Refresh stale feeds when the user returns to this tab after ≥15 min away
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState !== 'visible') return;
+    const now = Date.now();
+    if (now - _lastRSSFetch    > REFRESH_MS) runRSSFeeds();
+    if (now - _lastSocialFetch > REFRESH_MS) runSocialFeeds();
+    if (now - _lastRSSFetch    > REFRESH_MS)
+      document.querySelectorAll('[data-gnews-query]').forEach(loadDynamicCardSection);
+  });
+
   // Render empty search state
   renderSearchResults('');
 });
