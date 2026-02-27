@@ -102,55 +102,73 @@ function generateFakeVotes(n, votedBtn) {
 
 
 // =====================================================
-// === 1. LIVE WEATHER — wttr.in API               ===
-// === Location: 3445 Princess Ave, North Vancouver ===
+// === 1. LIVE WEATHER — Open-Meteo API            ===
+// === Location: North Vancouver, BC (49.32,-123.07)===
 // =====================================================
 
-const WX_CODE_ICON = {
-  113:'☀️', 116:'⛅', 119:'☁️', 122:'☁️',
-  143:'🌫️', 248:'🌫️', 260:'🌫️',
-  176:'🌦️', 263:'🌦️', 266:'🌦️', 293:'🌦️', 296:'🌦️',
-  299:'🌧️', 302:'🌧️', 305:'🌧️', 308:'🌧️', 311:'🌧️', 314:'🌧️',
-  317:'🌨️', 320:'🌨️', 362:'🌨️', 365:'🌨️', 374:'🌨️', 377:'🌨️',
-  323:'❄️', 326:'❄️', 329:'❄️', 332:'❄️', 335:'❄️', 338:'❄️', 371:'❄️',
-  200:'⛈️', 386:'⛈️', 389:'⛈️', 392:'⛈️', 395:'⛈️',
-  359:'🌧️', 356:'🌧️', 353:'🌦️'
+const WMO_ICON = {
+  0:'☀️', 1:'🌤️', 2:'⛅', 3:'☁️',
+  45:'🌫️', 48:'🌫️',
+  51:'🌦️', 53:'🌦️', 55:'🌦️',
+  61:'🌧️', 63:'🌧️', 65:'🌧️',
+  71:'❄️', 73:'❄️', 75:'❄️', 77:'❄️',
+  80:'🌦️', 81:'🌧️', 82:'🌧️',
+  85:'🌨️', 86:'🌨️',
+  95:'⛈️', 96:'⛈️', 99:'⛈️'
 };
 
-function wxIcon(code) {
-  return WX_CODE_ICON[parseInt(code)] || '🌡️';
+const WMO_DESC = {
+  0:'Clear sky', 1:'Mainly clear', 2:'Partly cloudy', 3:'Overcast',
+  45:'Foggy', 48:'Freezing fog',
+  51:'Light drizzle', 53:'Drizzle', 55:'Heavy drizzle',
+  61:'Light rain', 63:'Rain', 65:'Heavy rain',
+  71:'Light snow', 73:'Snow', 75:'Heavy snow', 77:'Snow grains',
+  80:'Rain showers', 81:'Heavy showers', 82:'Violent showers',
+  85:'Snow showers', 86:'Heavy snow showers',
+  95:'Thunderstorm', 96:'Thunderstorm', 99:'Thunderstorm'
+};
+
+function wmoIcon(code) { return WMO_ICON[parseInt(code)] || '🌡️'; }
+function wmoDesc(code) { return WMO_DESC[parseInt(code)] || 'Weather'; }
+
+function windDirLabel(deg) {
+  const dirs = ['N','NE','E','SE','S','SW','W','NW'];
+  return dirs[Math.round(deg / 45) % 8];
 }
 
 async function loadLiveWeather() {
   const widget = document.getElementById('weather-widget');
   if (!widget) return;
 
-  // wttr.in geocodes addresses accurately — Princess Ave, North Van
-  const url = 'https://wttr.in/3445+Princess+Ave+North+Vancouver+BC?format=j1';
+  // Open-Meteo — free, no API key, CORS-friendly — North Vancouver coords
+  const url = 'https://api.open-meteo.com/v1/forecast' +
+    '?latitude=49.3154&longitude=-123.0683' +
+    '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m' +
+    '&daily=temperature_2m_max,temperature_2m_min,weather_code' +
+    '&timezone=America%2FVancouver&forecast_days=2';
 
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
 
-    const cur = data.current_condition[0];
-    const today = data.weather[0];
-    const tomorrow = data.weather[1];
+    const cur   = data.current;
+    const daily = data.daily;
 
-    const tempC   = cur.temp_C;
-    const feelsC  = cur.FeelsLikeC;
-    const desc    = cur.weatherDesc[0].value;
-    const humid   = cur.humidity;
-    const windKph = cur.windspeedKmph;
-    const windDir = cur.winddir16Point;
-    const code    = cur.weatherCode;
-    const icon    = wxIcon(code);
+    const code    = cur.weather_code;
+    const icon    = wmoIcon(code);
+    const desc    = wmoDesc(code);
+    const tempC   = Math.round(cur.temperature_2m);
+    const feelsC  = Math.round(cur.apparent_temperature);
+    const humid   = cur.relative_humidity_2m;
+    const windKph = Math.round(cur.wind_speed_10m);
+    const windDir = windDirLabel(cur.wind_direction_10m);
 
-    const hiC  = today.maxtempC;
-    const loC  = today.mintempC;
-    const hi2  = tomorrow.maxtempC;
-    const lo2  = tomorrow.mintempC;
-    const icon2 = wxIcon(tomorrow.hourly[4]?.weatherCode || 116);
+    const hiC  = Math.round(daily.temperature_2m_max[0]);
+    const loC  = Math.round(daily.temperature_2m_min[0]);
+    const hi2  = Math.round(daily.temperature_2m_max[1]);
+    const lo2  = Math.round(daily.temperature_2m_min[1]);
+    const icon2 = wmoIcon(daily.weather_code[1]);
 
     widget.innerHTML = `
       <div class="wx-current">
@@ -162,10 +180,9 @@ async function loadLiveWeather() {
         Feels ${feelsC}&deg; &bull; H:${hiC}&deg; L:${loC}&deg; &bull; ${windDir} ${windKph}km/h &bull; Hum ${humid}%
       </div>
       <div class="wx-tomorrow">Tomorrow ${icon2} H:${hi2}&deg; L:${lo2}&deg;</div>
-      <div class="wx-location">&#128205; 3445 Princess Ave, North Van</div>
+      <div class="wx-location">&#128205; North Vancouver, BC</div>
     `;
   } catch (err) {
-    // Graceful fallback — show static placeholder
     widget.innerHTML = `
       <div class="wx-current">
         <span class="wx-icon">⛅</span>
@@ -173,7 +190,7 @@ async function loadLiveWeather() {
         <span class="wx-desc">North Van</span>
       </div>
       <div class="wx-details">Weather unavailable &mdash; <a href="https://weather.gc.ca/city/pages/bc-74_metric_e.html" target="_blank" rel="noopener">Env. Canada &#8599;</a></div>
-      <div class="wx-location">&#128205; 3445 Princess Ave, North Van</div>
+      <div class="wx-location">&#128205; North Vancouver, BC</div>
     `;
   }
 }
