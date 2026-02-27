@@ -239,10 +239,10 @@ const CORS_PROXIES = [
 
 const CACHE_TTL = 5 * 60 * 1000;
 
-function getCached(key) {
+function getCached(key, ttl = CACHE_TTL) {
   try {
     const entry = JSON.parse(localStorage.getItem('nsd:' + key));
-    if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.data;
+    if (entry && Date.now() - entry.ts < ttl) return entry.data;
   } catch (_) {}
   return null;
 }
@@ -286,9 +286,9 @@ function parseRSSXml(xml) {
   return items;
 }
 
-async function fetchFeedItems(feedUrl) {
+async function fetchFeedItems(feedUrl, ttl = CACHE_TTL) {
   const cacheKey = 'feed:' + feedUrl;
-  const cached = getCached(cacheKey);
+  const cached = getCached(cacheKey, ttl);
   if (cached) return cached;
 
   for (const makeUrl of CORS_PROXIES) {
@@ -605,11 +605,13 @@ async function loadDynamicCardSection(el) {
   const query = el.dataset.gnewsQuery;
   if (!query) return;
 
+  // data-cache-ttl (ms) overrides the default 5-min TTL — use 86400000 for daily
+  const ttl     = parseInt(el.dataset.cacheTtl, 10) || CACHE_TTL;
   const feedUrl = `https://news.google.com/rss/search?q=${query}&hl=en-CA&gl=CA&ceid=CA:en`;
-  el.innerHTML = '<p class="rss-loading">Loading local news&#8230;</p>';
+  el.innerHTML  = '<p class="rss-loading">Loading&#8230;</p>';
 
   try {
-    const items = await fetchFeedItems(feedUrl);
+    const items = await fetchFeedItems(feedUrl, ttl);
     if (!items.length) throw new Error('no items');
 
     let html = '';
@@ -631,7 +633,35 @@ async function loadDynamicCardSection(el) {
 
     el.innerHTML = html;
   } catch (_) {
-    el.innerHTML = '<p class="rss-loading">Local news temporarily unavailable.</p>';
+    el.innerHTML = '<p class="rss-loading">News temporarily unavailable.</p>';
+  }
+}
+
+
+// =====================================================
+// === 5. BREAKING NEWS TICKER                      ===
+// =====================================================
+
+const TICKER_FEED = 'https://news.google.com/rss/search?q=%22north+shore%22+OR+%22north+vancouver%22+OR+%22west+vancouver%22&hl=en-CA&gl=CA&ceid=CA:en';
+
+async function loadTicker() {
+  const el = document.getElementById('ticker-content');
+  if (!el) return;
+
+  try {
+    const items = await fetchFeedItems(TICKER_FEED);
+    if (!items.length) throw new Error('empty');
+
+    const links = items.slice(0, 8).map(item => {
+      const raw      = item.title.replace(/<[^>]+>/g, '').trim();
+      const dashIdx  = raw.lastIndexOf(' - ');
+      const headline = dashIdx > 0 ? raw.slice(0, dashIdx) : raw;
+      return `<a href="${item.link}" target="_blank" rel="noopener">${headline}</a>`;
+    });
+
+    el.innerHTML = links.join(' &nbsp;|&nbsp; ');
+  } catch (_) {
+    // Leave whatever was already in the ticker on failure
   }
 }
 
@@ -640,7 +670,8 @@ async function loadDynamicCardSection(el) {
 // === INITIALISE ON DOM READY                      ===
 // =====================================================
 
-const REFRESH_MS = 15 * 60 * 1000;   // 15 minutes
+const REFRESH_MS  = 15 * 60 * 1000;   // 15 minutes
+const DAY_MS      = 24 * 60 * 60 * 1000; // 24 hours (events cache)
 let _lastRSSFetch    = 0;
 let _lastSocialFetch = 0;
 
@@ -652,6 +683,10 @@ document.addEventListener('DOMContentLoaded', function () {
   loadLiveWeather();
   setInterval(loadLiveWeather, 10 * 60 * 1000);
 
+  // Breaking news ticker — load now, then every 15 min
+  loadTicker();
+  setInterval(loadTicker, REFRESH_MS);
+
   // RSS news feeds — load now, then every 15 min
   runRSSFeeds();
   setInterval(runRSSFeeds, REFRESH_MS);
@@ -660,17 +695,19 @@ document.addEventListener('DOMContentLoaded', function () {
   runSocialFeeds();
   setInterval(runSocialFeeds, REFRESH_MS);
 
-  // Dynamic card sections (data-gnews-query attributes)
+  // Dynamic card sections (data-gnews-query attributes); events use 24h TTL
   document.querySelectorAll('[data-gnews-query]').forEach(loadDynamicCardSection);
 
   // Refresh stale feeds when the user returns to this tab after ≥15 min away
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState !== 'visible') return;
     const now = Date.now();
-    if (now - _lastRSSFetch    > REFRESH_MS) runRSSFeeds();
-    if (now - _lastSocialFetch > REFRESH_MS) runSocialFeeds();
-    if (now - _lastRSSFetch    > REFRESH_MS)
+    if (now - _lastRSSFetch    > REFRESH_MS) {
+      runRSSFeeds();
+      loadTicker();
       document.querySelectorAll('[data-gnews-query]').forEach(loadDynamicCardSection);
+    }
+    if (now - _lastSocialFetch > REFRESH_MS) runSocialFeeds();
   });
 
   // Render empty search state

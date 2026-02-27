@@ -13,16 +13,7 @@
   <div class="ticker-bar">
     <span class="ticker-label">BREAKING</span>
     <div class="ticker-track">
-      <span class="ticker-content">
-        <a href="https://www.dnv.org/streets-transportation/mountain-highway-safety-improvements" target="_blank" rel="noopener">North Van District Council approves new cycling infrastructure on Mountain Highway</a> &nbsp;|&nbsp;
-        <a href="https://www.sd45.bc.ca" target="_blank" rel="noopener">West Vancouver School District announces expanded French immersion seats for Fall 2026</a> &nbsp;|&nbsp;
-        <a href="https://www.capbridge.com" target="_blank" rel="noopener">Capilano Suspension Bridge reports record visitor numbers in January</a> &nbsp;|&nbsp;
-        <a href="https://www.bcferries.com/hsb-travel" target="_blank" rel="noopener">BC Ferries confirms Horseshoe Bay terminal upgrade underway</a> &nbsp;|&nbsp;
-        <a href="https://www.northshorerescue.com" target="_blank" rel="noopener">North Shore Rescue completes 200th operation of the year on Mount Seymour</a> &nbsp;|&nbsp;
-        <a href="https://www.nhl.com/canucks/news" target="_blank" rel="noopener">Canucks edge Jets 4-3 in overtime at Rogers Arena</a> &nbsp;|&nbsp;
-        <a href="https://metrovancouver.org/services/drinking-water-quality" target="_blank" rel="noopener">Metro Vancouver water board approves rate increase for 2026-27</a> &nbsp;|&nbsp;
-        <a href="https://www.translink.ca/news" target="_blank" rel="noopener">TransLink proposes new B-Line along Marine Drive connecting North Shore communities</a>
-      </span>
+      <span id="ticker-content" class="ticker-content">Loading latest headlines&#8230;</span>
     </div>
   </div>
 
@@ -190,17 +181,12 @@
            data-gnews-query="%22north+vancouver%22+BC">
         <p class="rss-loading">Loading North Vancouver news&#8230;</p>
       </div>
-      <article class="card card-callout" style="margin-top:1rem">
-        <div class="card-tag">UPCOMING</div>
-        <h3>North Vancouver Community Events</h3>
-        <ul class="event-list">
-          <li><span class="event-date">Mar 3</span> Lynn Valley Village Farmers Market reopens</li>
-          <li><span class="event-date">Mar 6</span> DNV Budget Open House — Centennial Theatre</li>
-          <li><span class="event-date">Mar 10</span> North Shore Search &amp; Rescue fundraiser dinner</li>
-          <li><span class="event-date">Mar 15</span> Earth Hour community walk — Maplewood Flats</li>
-          <li><span class="event-date">Mar 22</span> World Water Day — Lynn Canyon event</li>
-        </ul>
-      </article>
+      <p class="rss-intro" style="margin-top:1.25rem"><strong>Community Events</strong></p>
+      <div class="grid-3col"
+           data-gnews-query="%22north+vancouver%22+event+OR+festival+OR+market+OR+community"
+           data-cache-ttl="86400000">
+        <p class="rss-loading">Loading community events&#8230;</p>
+      </div>
     </section>
 
     <!-- ============================================================
@@ -212,17 +198,12 @@
            data-gnews-query="%22west+vancouver%22+BC">
         <p class="rss-loading">Loading West Vancouver news&#8230;</p>
       </div>
-      <article class="card card-callout" style="margin-top:1rem">
-        <div class="card-tag">UPCOMING</div>
-        <h3>West Vancouver Community Events</h3>
-        <ul class="event-list">
-          <li><span class="event-date">Mar 5</span> Dundarave Farmers Market season opener</li>
-          <li><span class="event-date">Mar 11</span> West Van Council public hearing — Ambleside Plan</li>
-          <li><span class="event-date">Mar 14</span> Park Royal spring market weekend</li>
-          <li><span class="event-date">Mar 18</span> Gleneagles Community Centre spring programming begins</li>
-          <li><span class="event-date">Apr 5</span> Silk Purse 30th Anniversary Gala</li>
-        </ul>
-      </article>
+      <p class="rss-intro" style="margin-top:1.25rem"><strong>Community Events</strong></p>
+      <div class="grid-3col"
+           data-gnews-query="%22west+vancouver%22+event+OR+festival+OR+market+OR+community"
+           data-cache-ttl="86400000">
+        <p class="rss-loading">Loading community events&#8230;</p>
+      </div>
     </section>
 
     <!-- ============================================================
