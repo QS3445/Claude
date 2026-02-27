@@ -226,10 +226,12 @@ const CORS_PROXIES = [
 ];
 
 function parseRSSXml(xml) {
-  // RSS feeds often embed HTML named entities (e.g. &nbsp; &mdash;) that are
-  // undefined in XML — DOMParser rejects the whole document. Strip them while
-  // keeping the five standard XML entities and numeric references (&#160; etc).
-  const clean = xml.replace(/&(?!(amp|lt|gt|apos|quot);|#(\d+|x[\da-fA-F]+);)[a-zA-Z]\w*;/g, '');
+  // Pass 1: remove HTML named entities undefined in XML (&nbsp; &mdash; etc.)
+  // keeping &amp; &lt; &gt; &apos; &quot; and numeric refs like &#160;
+  let clean = xml.replace(/&(?!(amp|lt|gt|apos|quot);|#(\d+|x[\da-fA-F]+);)[a-zA-Z]\w*;/g, '');
+  // Pass 2: escape bare & not part of any valid XML reference
+  // (e.g. "AT&T", "Q&A", "Arts & Culture") — these cause "not well-formed" errors
+  clean = clean.replace(/&(?!(amp|lt|gt|apos|quot);|#(\d+|x[\da-fA-F]+);)/g, '&amp;');
 
   const doc = new DOMParser().parseFromString(clean, 'text/xml');
   if (doc.querySelector('parsererror')) throw new Error('XML parse error');
