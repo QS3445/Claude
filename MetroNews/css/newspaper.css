@@ -253,6 +253,15 @@ ul { list-style: none; }
   margin-bottom: 0.4rem;
 }
 
+.card h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.card h3 a:hover {
+  text-decoration: underline;
+}
+
 .byline {
   font-family: var(--sans);
   font-size: 0.68rem;
