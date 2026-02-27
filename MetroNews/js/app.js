@@ -218,18 +218,18 @@ const RSS_FEEDS = [
   }
 ];
 
-// Fetch one RSS feed via allorigins.win CORS proxy and parse with DOMParser
-async function fetchFeedItems(feedUrl) {
-  const proxy = 'https://api.allorigins.win/get?url=';
-  const resp = await fetch(proxy + encodeURIComponent(feedUrl));
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  const json = await resp.json();
-  if (!json.contents) throw new Error('empty response');
+// Two CORS proxies tried in order; first success wins.
+// allorigins returns JSON {contents}; codetabs returns raw XML.
+const CORS_PROXIES = [
+  u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+  u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
+];
 
-  const doc = new DOMParser().parseFromString(json.contents, 'text/xml');
+function parseRSSXml(xml) {
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  if (doc.querySelector('parsererror')) throw new Error('XML parse error');
   return Array.from(doc.querySelectorAll('item')).slice(0, 5).map(item => {
     const linkEl = item.querySelector('link');
-    // <link> in XML can store its value as text content or as an href attribute
     const link = linkEl?.textContent?.trim() ||
                  linkEl?.getAttribute('href') ||
                  item.querySelector('guid')?.textContent?.trim() || '#';
@@ -239,6 +239,26 @@ async function fetchFeedItems(feedUrl) {
       pubDate: item.querySelector('pubDate')?.textContent || ''
     };
   }).filter(i => i.title);
+}
+
+async function fetchFeedItems(feedUrl) {
+  for (const makeUrl of CORS_PROXIES) {
+    try {
+      const resp = await fetch(makeUrl(feedUrl), { signal: AbortSignal.timeout(9000) });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const text = await resp.text();
+      // allorigins wraps in JSON; codetabs returns raw XML — handle both
+      let xml;
+      try { xml = JSON.parse(text).contents; } catch { xml = text; }
+      if (!xml) throw new Error('empty');
+      const items = parseRSSXml(xml);
+      if (!items.length) throw new Error('no items');
+      return items;
+    } catch (_) {
+      // fall through to next proxy
+    }
+  }
+  throw new Error('all proxies failed');
 }
 
 async function loadRSSFeeds() {
