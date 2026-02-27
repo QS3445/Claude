@@ -443,19 +443,33 @@ function highlight(text, q) {
 }
 
 // =====================================================
-// === 3. SOCIAL FEEDS — Reddit community RSS
+// === 3. SOCIAL FEEDS — Reddit JSON + Google News fallback
 // =====================================================
 
-const REDDIT_FEEDS = [
+// allorigins.win first — more reliable for Reddit than corsproxy.io
+const SOCIAL_PROXIES = [
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
+];
+
+// Two Reddit subreddits to try; each falls back to a Google News RSS query
+const SOCIAL_COLS = [
   {
-    label: 'r/northvancouver',
-    href:  'https://www.reddit.com/r/northvancouver/',
-    url:   'https://www.reddit.com/r/northvancouver/hot.rss?limit=6'
+    label:     'r/northvancouver',
+    href:      'https://www.reddit.com/r/northvancouver/',
+    redditSub: 'northvancouver',
+    fallbackLabel: 'Trending: North Vancouver',
+    fallbackHref:  'https://news.google.com/search?q=north+vancouver+BC&hl=en-CA&gl=CA&ceid=CA:en',
+    fallbackUrl:   'https://news.google.com/rss/search?q=%22north+vancouver%22+BC&hl=en-CA&gl=CA&ceid=CA:en'
   },
   {
-    label: 'r/WestVancouver',
-    href:  'https://www.reddit.com/r/WestVancouver/',
-    url:   'https://www.reddit.com/r/WestVancouver/hot.rss?limit=6'
+    label:     'r/WestVancouver',
+    href:      'https://www.reddit.com/r/WestVancouver/',
+    redditSub: 'WestVancouver',
+    fallbackLabel: 'Trending: West Vancouver',
+    fallbackHref:  'https://news.google.com/search?q=west+vancouver+BC&hl=en-CA&gl=CA&ceid=CA:en',
+    fallbackUrl:   'https://news.google.com/rss/search?q=%22west+vancouver%22+BC&hl=en-CA&gl=CA&ceid=CA:en'
   }
 ];
 
@@ -470,52 +484,79 @@ function timeAgo(dateStr) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+// Fetch Reddit hot posts via JSON API using social proxies
+async function fetchRedditPosts(subreddit) {
+  const url = `https://www.reddit.com/r/${subreddit}/hot.json?limit=7&raw_json=1`;
+  for (const makeUrl of SOCIAL_PROXIES) {
+    try {
+      const resp = await fetch(makeUrl(url), { signal: AbortSignal.timeout(9000) });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      if (!data.data || !data.data.children) throw new Error('unexpected format');
+      const posts = data.data.children
+        .filter(c => !c.data.stickied && c.data.title)
+        .map(c => ({
+          title:   c.data.title,
+          link:    'https://www.reddit.com' + c.data.permalink,
+          pubDate: new Date(c.data.created_utc * 1000).toISOString()
+        }))
+        .slice(0, 5);
+      if (posts.length) return posts;
+    } catch (_) {}
+  }
+  throw new Error('reddit unavailable');
+}
+
+function renderSocialCol(label, href, items, badge, dotColor, moreText) {
+  let html = `
+    <div class="social-reddit-col">
+      <div class="social-col-header" style="border-top-color:${dotColor}">
+        <span class="social-reddit-dot" style="background:${dotColor}"></span>
+        <a href="${href}" class="social-sub-name" target="_blank" rel="noopener">${label}</a>
+        <span class="social-hot-badge" style="background:${dotColor}">${badge}</span>
+      </div>
+      <ul class="social-post-list">`;
+  items.forEach(item => {
+    const age   = timeAgo(item.pubDate);
+    const title = (item.title || '').replace(/<[^>]+>/g, '').trim();
+    html += `<li class="social-post-item">
+      <a href="${item.link}" target="_blank" rel="noopener">${title}</a>
+      ${age ? `<span class="social-post-age">${age}</span>` : ''}
+    </li>`;
+  });
+  html += `</ul>
+      <a class="social-more-link" href="${href}" target="_blank" rel="noopener">${moreText} &#8599;</a>
+    </div>`;
+  return html;
+}
+
 async function loadSocialFeeds() {
   const container = document.getElementById('social-feed-container');
   if (!container) return;
 
-  const results = await Promise.allSettled(
-    REDDIT_FEEDS.map(feed =>
-      fetchFeedItems(feed.url).then(items => ({ feed, items }))
-    )
+  const colResults = await Promise.allSettled(
+    SOCIAL_COLS.map(async col => {
+      // Try Reddit first
+      try {
+        const posts = await fetchRedditPosts(col.redditSub);
+        return { label: col.label, href: col.href, items: posts, isReddit: true };
+      } catch (_) {}
+      // Fall back to Google News RSS via existing proxy infrastructure
+      const items = await fetchFeedItems(col.fallbackUrl);
+      return { label: col.fallbackLabel, href: col.fallbackHref, items, isReddit: false };
+    })
   );
 
   let html = '<div class="social-reddit-grid">';
-  let anySuccess = false;
 
-  results.forEach(result => {
+  colResults.forEach(result => {
     if (result.status !== 'fulfilled' || !result.value.items.length) return;
-    const { feed, items } = result.value;
-    anySuccess = true;
-
-    html += `
-      <div class="social-reddit-col">
-        <div class="social-col-header">
-          <span class="social-reddit-dot"></span>
-          <a href="${feed.href}" class="social-sub-name" target="_blank" rel="noopener">${feed.label}</a>
-          <span class="social-hot-badge">HOT</span>
-        </div>
-        <ul class="social-post-list">`;
-
-    items.forEach(item => {
-      const age   = timeAgo(item.pubDate);
-      const title = item.title.replace(/<[^>]+>/g, '').trim();
-      html += `<li class="social-post-item">
-        <a href="${item.link}" target="_blank" rel="noopener">${title}</a>
-        ${age ? `<span class="social-post-age">${age}</span>` : ''}
-      </li>`;
-    });
-
-    html += `</ul>
-        <a class="social-more-link" href="${feed.href}" target="_blank" rel="noopener">More on Reddit &#8599;</a>
-      </div>`;
+    const { label, href, items, isReddit } = result.value;
+    const dotColor  = isReddit ? '#ff4500' : '#cc0000';
+    const badge     = isReddit ? 'HOT' : 'LIVE';
+    const moreText  = isReddit ? 'More on Reddit' : 'More headlines';
+    html += renderSocialCol(label, href, items, badge, dotColor, moreText);
   });
-
-  if (!anySuccess) {
-    html += `<p class="rss-loading">Community discussions temporarily unavailable &mdash;
-      <a href="https://www.reddit.com/r/northvancouver/" target="_blank" rel="noopener">Visit r/northvancouver &#8599;</a>
-    </p>`;
-  }
 
   html += '</div>';
   container.innerHTML = html;

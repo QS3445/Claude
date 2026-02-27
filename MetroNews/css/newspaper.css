@@ -1238,7 +1238,7 @@ blockquote::after  { content: '\201D'; }
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
-  border-top: 3px solid #ff4500;
+  border-top: 3px solid;   /* colour set inline by JS */
   background: var(--paper-alt);
 }
 
