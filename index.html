@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>North Shore Dispatch — Vancouver BC Local News</title>
   <link rel="stylesheet" href="css/newspaper.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -39,7 +40,7 @@
       </div>
       <div class="masthead-meta right">
         Free Online Edition<br />
-        <span id="live-weather">North Van &#9729; 7&deg;C</span>
+        <div id="weather-widget"><span class="wx-loading">Loading weather&#8230;</span></div>
       </div>
     </div>
   </header>
@@ -53,11 +54,28 @@
       <li><a href="#sports" class="nav-link">Sports</a></li>
       <li><a href="#council" class="nav-link">Council &amp; Reports</a></li>
       <li><a href="#stats" class="nav-link">City Stats</a></li>
+      <li><a href="#realestate" class="nav-link">Real Estate</a></li>
       <li><a href="#opinion" class="nav-link">Opinion</a></li>
       <li><a href="#video" class="nav-link">Video</a></li>
+      <li><a href="#neighbourhoods" class="nav-link">Neighbourhoods</a></li>
+      <li><a href="#rss" class="nav-link">Live News</a></li>
       <li><a href="#links" class="nav-link">Resources</a></li>
+      <li><button class="nav-search-btn" onclick="toggleSearch()" aria-label="Search">&#128269; Search</button></li>
     </ul>
   </nav>
+
+  <!-- ===== SEARCH OVERLAY ===== -->
+  <div id="search-overlay" class="search-overlay" style="display:none;" role="search">
+    <div class="search-inner">
+      <div class="search-bar-row">
+        <input id="search-input" class="search-input" type="search"
+          placeholder="Search articles, stats, resources&#8230;"
+          onkeyup="onSearchKey(event)" autocomplete="off" />
+        <button class="search-close-btn" onclick="toggleSearch()" aria-label="Close search">&times;</button>
+      </div>
+      <div id="search-results" class="search-results"></div>
+    </div>
+  </div>
 
   <!-- ===== MAIN CONTENT ===== -->
   <main class="newspaper-body">
@@ -103,6 +121,17 @@
         </article>
 
       </div><!-- /grid-3col -->
+    </section>
+
+    <!-- ============================================================
+         SECTION: LIVE RSS NEWS FEEDS
+    ============================================================ -->
+    <section id="rss" class="section">
+      <h2 class="section-head">Live News Feeds</h2>
+      <p class="rss-intro">Real-time headlines pulled from CBC BC, Global BC, and Vancouver Sun. Headlines refresh each page load. <em>Click any headline to read the full story on its source site.</em></p>
+      <div id="rss-feed-container">
+        <p class="rss-loading">Fetching latest headlines&#8230;</p>
+      </div>
     </section>
 
     <!-- ============================================================
@@ -482,6 +511,42 @@
     </section>
 
     <!-- ============================================================
+         SECTION: REAL ESTATE CHARTS
+    ============================================================ -->
+    <section id="realestate" class="section">
+      <h2 class="section-head">Real Estate Market</h2>
+      <p class="chart-intro">North Shore benchmark prices and sales volumes for 2025. Data approximated from REBGV monthly reports. <a href="https://www.rebgv.org/market-watch/monthly-market-report/year-2025.html" target="_blank" rel="noopener">Full REBGV reports &#8599;</a></p>
+
+      <div class="chart-grid">
+
+        <div class="chart-panel chart-panel-wide">
+          <canvas id="chart-prices" height="90"></canvas>
+        </div>
+
+        <div class="chart-panel">
+          <canvas id="chart-sales" height="160"></canvas>
+        </div>
+
+        <div class="chart-panel">
+          <canvas id="chart-mix" height="160"></canvas>
+          <div class="chart-caption">
+            <p><strong>Dec 2025 snapshot &mdash; North Van</strong></p>
+            <p>Benchmark: Detached $2.13M &bull; Attached $1.375M &bull; Apartment $788K</p>
+            <p>West Van Detached Benchmark: $3.815M</p>
+          </div>
+        </div>
+
+      </div><!-- /chart-grid -->
+
+      <div class="re-links-row">
+        <a class="report-btn" href="https://www.rebgv.org" target="_blank" rel="noopener">REBGV &#8599;</a>
+        <a class="report-btn" href="https://www.bcrea.bc.ca" target="_blank" rel="noopener">BC Real Estate Assoc. &#8599;</a>
+        <a class="report-btn" href="https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/prof/index.cfm?Lang=E" target="_blank" rel="noopener">Census Housing Data &#8599;</a>
+        <a class="report-btn" href="https://www.cmhc-schl.gc.ca/en/housing-observer-online" target="_blank" rel="noopener">CMHC Housing Observer &#8599;</a>
+      </div>
+    </section>
+
+    <!-- ============================================================
          SECTION: PUBLIC OPINION
     ============================================================ -->
     <section id="opinion" class="section">
@@ -630,6 +695,83 @@
     </section>
 
     <!-- ============================================================
+         SECTION: NEIGHBOURHOODS
+    ============================================================ -->
+    <section id="neighbourhoods" class="section">
+      <h2 class="section-head">Neighbourhoods</h2>
+      <p class="nbhd-intro">Explore dedicated pages for key North &amp; West Vancouver communities. Each page features local news, demographics, points of interest, and community resources.</p>
+
+      <div class="nbhd-grid">
+
+        <a class="nbhd-card" href="neighbourhoods/lonsdale.html">
+          <div class="nbhd-card-img lonsdale-bg"></div>
+          <div class="nbhd-card-body">
+            <span class="nbhd-tag">City of North Vancouver</span>
+            <h3>Lonsdale &amp; Lower Lonsdale</h3>
+            <p>North Van's urban heart — SeaBus terminal, Lonsdale Quay, high-rise living, craft breweries, and the waterfront boardwalk.</p>
+            <span class="nbhd-explore">Explore &#8594;</span>
+          </div>
+        </a>
+
+        <a class="nbhd-card" href="neighbourhoods/deep-cove.html">
+          <div class="nbhd-card-img deep-cove-bg"></div>
+          <div class="nbhd-card-body">
+            <span class="nbhd-tag">District of North Vancouver</span>
+            <h3>Deep Cove</h3>
+            <p>Tranquil village at the end of Indian Arm — kayaking, hiking, Honey Doughnuts, and access to Mount Seymour Provincial Park.</p>
+            <span class="nbhd-explore">Explore &#8594;</span>
+          </div>
+        </a>
+
+        <a class="nbhd-card" href="neighbourhoods/edgemont.html">
+          <div class="nbhd-card-img edgemont-bg"></div>
+          <div class="nbhd-card-body">
+            <span class="nbhd-tag">District of North Vancouver</span>
+            <h3>Edgemont Village</h3>
+            <p>Family-friendly village at the foot of Grouse Mountain — boutique shopping, top-rated schools, and trail access.</p>
+            <span class="nbhd-explore">Explore &#8594;</span>
+          </div>
+        </a>
+
+        <a class="nbhd-card" href="neighbourhoods/dundarave.html">
+          <div class="nbhd-card-img dundarave-bg"></div>
+          <div class="nbhd-card-body">
+            <span class="nbhd-tag">District of West Vancouver</span>
+            <h3>Dundarave &amp; Ambleside</h3>
+            <p>West Van's beachfront village — Dundarave Pier, independent boutiques along Marine Drive, seawall walks, and ocean views.</p>
+            <span class="nbhd-explore">Explore &#8594;</span>
+          </div>
+        </a>
+
+        <a class="nbhd-card" href="neighbourhoods/horseshoe-bay.html">
+          <div class="nbhd-card-img horseshoe-bg"></div>
+          <div class="nbhd-card-body">
+            <span class="nbhd-tag">District of West Vancouver</span>
+            <h3>Horseshoe Bay</h3>
+            <p>Gateway to Vancouver Island and the Sunshine Coast — BC Ferries terminal, waterfront restaurants, and a tight-knit village community.</p>
+            <span class="nbhd-explore">Explore &#8594;</span>
+          </div>
+        </a>
+
+        <div class="nbhd-card nbhd-card-more">
+          <div class="nbhd-card-body">
+            <h3>More Neighbourhoods Coming</h3>
+            <ul>
+              <li>Lynn Valley</li>
+              <li>Capilano / Norgate</li>
+              <li>Mosquito Creek</li>
+              <li>Pemberton Heights</li>
+              <li>British Properties</li>
+              <li>Altamont &amp; Caulfeild</li>
+            </ul>
+            <p class="nbhd-wip"><em>Work in progress — check back soon.</em></p>
+          </div>
+        </div>
+
+      </div><!-- /nbhd-grid -->
+    </section>
+
+    <!-- ============================================================
          SECTION: RESOURCES & LINKS
     ============================================================ -->
     <section id="links" class="section">
@@ -744,9 +886,12 @@
           <li><a href="#west-van">West Vancouver</a></li>
           <li><a href="#sports">Sports</a></li>
           <li><a href="#council">Council</a></li>
+          <li><a href="#rss">Live News</a></li>
           <li><a href="#stats">Statistics</a></li>
+          <li><a href="#realestate">Real Estate</a></li>
           <li><a href="#opinion">Opinion</a></li>
           <li><a href="#video">Video</a></li>
+          <li><a href="#neighbourhoods">Neighbourhoods</a></li>
           <li><a href="#links">Resources</a></li>
         </ul>
       </div>
@@ -766,5 +911,6 @@
   </footer>
 
   <script src="js/app.js"></script>
+  <script src="js/charts.js"></script>
 </body>
 </html>
