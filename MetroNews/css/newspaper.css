@@ -86,6 +86,12 @@ ul { list-style: none; }
 
 .ticker-bar:hover .ticker-content { animation-play-state: paused; }
 
+.ticker-content a {
+  color: #fff;
+  text-decoration: none;
+}
+.ticker-content a:hover { text-decoration: underline; }
+
 /* === MASTHEAD === */
 .masthead {
   background: var(--paper);
