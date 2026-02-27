@@ -59,6 +59,7 @@
       <li><a href="#video" class="nav-link">Video</a></li>
       <li><a href="#neighbourhoods" class="nav-link">Neighbourhoods</a></li>
       <li><a href="#rss" class="nav-link">Live News</a></li>
+      <li><a href="#social" class="nav-link">Social</a></li>
       <li><a href="#links" class="nav-link">Resources</a></li>
       <li><button class="nav-search-btn" onclick="toggleSearch()" aria-label="Search">&#128269; Search</button></li>
     </ul>
@@ -132,6 +133,84 @@
       <div id="rss-feed-container">
         <p class="rss-loading">Fetching latest headlines&#8230;</p>
       </div>
+    </section>
+
+    <!-- ============================================================
+         SECTION: SOCIAL & TRENDING
+    ============================================================ -->
+    <section id="social" class="section">
+      <h2 class="section-head">Social &amp; Trending</h2>
+      <p class="social-intro">Live community discussions and trending topics from North Shore's most active social platforms. Reddit surfaces the most authentic local conversations; X, Instagram and Nextdoor keep you connected to municipal updates, visual stories and neighbourhood talk.</p>
+
+      <!-- Reddit live feed (two subreddits via RSS) -->
+      <div id="social-feed-container">
+        <p class="rss-loading">Loading community posts&#8230;</p>
+      </div>
+
+      <!-- Platform follow &amp; trending cards -->
+      <div class="social-platforms-grid">
+
+        <div class="social-platform-card x-card">
+          <div class="spc-header">&#x1D54F;&nbsp; X / Twitter</div>
+          <p class="spc-desc">Breaking news, municipal announcements and local journalist updates for North Shore.</p>
+          <p class="spc-section-label">Trending searches</p>
+          <div class="spc-tags">
+            <a href="https://x.com/search?q=%23NorthVancouver&f=live" target="_blank" rel="noopener">#NorthVancouver</a>
+            <a href="https://x.com/search?q=%23WestVancouver&f=live" target="_blank" rel="noopener">#WestVancouver</a>
+            <a href="https://x.com/search?q=%23NorthShoreBC&f=live" target="_blank" rel="noopener">#NorthShoreBC</a>
+            <a href="https://x.com/search?q=%23NorthShoreMountains&f=live" target="_blank" rel="noopener">#NorthShoreMountains</a>
+          </div>
+          <p class="spc-section-label">Key accounts</p>
+          <div class="spc-accounts">
+            <a href="https://x.com/NorthShoreNews" target="_blank" rel="noopener">@NorthShoreNews</a>
+            <a href="https://x.com/NorthVanCity" target="_blank" rel="noopener">@NorthVanCity</a>
+            <a href="https://x.com/DNVancouver" target="_blank" rel="noopener">@DNVancouver</a>
+            <a href="https://x.com/westvancouver" target="_blank" rel="noopener">@westvancouver</a>
+          </div>
+        </div>
+
+        <div class="social-platform-card instagram-card">
+          <div class="spc-header">&#x1F4F7;&nbsp; Instagram</div>
+          <p class="spc-desc">Visual stories, community events and North Shore photography from local accounts and residents.</p>
+          <p class="spc-section-label">Trending tags</p>
+          <div class="spc-tags">
+            <a href="https://www.instagram.com/explore/tags/northvancouver/" target="_blank" rel="noopener">#northvancouver</a>
+            <a href="https://www.instagram.com/explore/tags/westvancouver/" target="_blank" rel="noopener">#westvancouver</a>
+            <a href="https://www.instagram.com/explore/tags/northshorebc/" target="_blank" rel="noopener">#northshorebc</a>
+            <a href="https://www.instagram.com/explore/tags/northshoremountains/" target="_blank" rel="noopener">#northshoremountains</a>
+          </div>
+          <p class="spc-section-label">Key accounts</p>
+          <div class="spc-accounts">
+            <a href="https://www.instagram.com/northshorenews/" target="_blank" rel="noopener">@northshorenews</a>
+            <a href="https://www.instagram.com/cityofnorthvancouver/" target="_blank" rel="noopener">@cityofnorthvancouver</a>
+            <a href="https://www.instagram.com/districtofnorthvancouver/" target="_blank" rel="noopener">@districtofnorthvancouver</a>
+          </div>
+        </div>
+
+        <div class="social-platform-card youtube-card">
+          <div class="spc-header">&#x25B6;&nbsp; YouTube</div>
+          <p class="spc-desc">Council meetings, civic events and community video for North &amp; West Vancouver. Essential for following local government.</p>
+          <p class="spc-section-label">Channels</p>
+          <div class="spc-accounts">
+            <a href="https://www.youtube.com/@CityofNorthVancouver" target="_blank" rel="noopener">City of North Vancouver</a>
+            <a href="https://www.youtube.com/@DistrictofNorthVancouver" target="_blank" rel="noopener">District of North Van</a>
+            <a href="https://www.youtube.com/@WestVancouver" target="_blank" rel="noopener">West Vancouver</a>
+            <a href="https://www.youtube.com/@CBCBritishColumbia" target="_blank" rel="noopener">CBC British Columbia</a>
+          </div>
+        </div>
+
+        <div class="social-platform-card nextdoor-card">
+          <div class="spc-header">&#x1F3E1;&nbsp; Nextdoor</div>
+          <p class="spc-desc">Hyperlocal neighbourhood discussions for North Shore residents — lost pets, local alerts, recommendations and community events block by block.</p>
+          <p class="spc-section-label">Get started</p>
+          <div class="spc-accounts">
+            <a href="https://nextdoor.com/find-neighborhood/" target="_blank" rel="noopener">Find your neighbourhood &#8599;</a>
+            <a href="https://nextdoor.com/join/" target="_blank" rel="noopener">Join Nextdoor &#8599;</a>
+          </div>
+          <p class="spc-note">&#x26A0;&nbsp; Nextdoor content is members-only &mdash; a free account verified to your address is required to read local posts.</p>
+        </div>
+
+      </div><!-- /social-platforms-grid -->
     </section>
 
     <!-- ============================================================
@@ -908,6 +987,7 @@
           <li><a href="#sports">Sports</a></li>
           <li><a href="#council">Council &amp; Reports</a></li>
           <li><a href="#rss">Live News</a></li>
+          <li><a href="#social">Social &amp; Trending</a></li>
           <li><a href="#stats">Statistics</a></li>
           <li><a href="#realestate">Real Estate</a></li>
           <li><a href="#opinion">Opinion</a></li>

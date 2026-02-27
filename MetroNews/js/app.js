@@ -442,11 +442,92 @@ function highlight(text, q) {
   return text.replace(re, '<mark>$1</mark>');
 }
 
+// =====================================================
+// === 3. SOCIAL FEEDS — Reddit community RSS
+// =====================================================
+
+const REDDIT_FEEDS = [
+  {
+    label: 'r/northvancouver',
+    href:  'https://www.reddit.com/r/northvancouver/',
+    url:   'https://www.reddit.com/r/northvancouver/hot.rss?limit=6'
+  },
+  {
+    label: 'r/WestVancouver',
+    href:  'https://www.reddit.com/r/WestVancouver/',
+    url:   'https://www.reddit.com/r/WestVancouver/hot.rss?limit=6'
+  }
+];
+
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 2)  return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+async function loadSocialFeeds() {
+  const container = document.getElementById('social-feed-container');
+  if (!container) return;
+
+  const results = await Promise.allSettled(
+    REDDIT_FEEDS.map(feed =>
+      fetchFeedItems(feed.url).then(items => ({ feed, items }))
+    )
+  );
+
+  let html = '<div class="social-reddit-grid">';
+  let anySuccess = false;
+
+  results.forEach(result => {
+    if (result.status !== 'fulfilled' || !result.value.items.length) return;
+    const { feed, items } = result.value;
+    anySuccess = true;
+
+    html += `
+      <div class="social-reddit-col">
+        <div class="social-col-header">
+          <span class="social-reddit-dot"></span>
+          <a href="${feed.href}" class="social-sub-name" target="_blank" rel="noopener">${feed.label}</a>
+          <span class="social-hot-badge">HOT</span>
+        </div>
+        <ul class="social-post-list">`;
+
+    items.forEach(item => {
+      const age   = timeAgo(item.pubDate);
+      const title = item.title.replace(/<[^>]+>/g, '').trim();
+      html += `<li class="social-post-item">
+        <a href="${item.link}" target="_blank" rel="noopener">${title}</a>
+        ${age ? `<span class="social-post-age">${age}</span>` : ''}
+      </li>`;
+    });
+
+    html += `</ul>
+        <a class="social-more-link" href="${feed.href}" target="_blank" rel="noopener">More on Reddit &#8599;</a>
+      </div>`;
+  });
+
+  if (!anySuccess) {
+    html += `<p class="rss-loading">Community discussions temporarily unavailable &mdash;
+      <a href="https://www.reddit.com/r/northvancouver/" target="_blank" rel="noopener">Visit r/northvancouver &#8599;</a>
+    </p>`;
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+
 // Initialise on DOM ready
 document.addEventListener('DOMContentLoaded', function () {
   loadLiveWeather();
   setInterval(loadLiveWeather, 10 * 60 * 1000);
   loadRSSFeeds();
+  loadSocialFeeds();
   // Render empty search state
   renderSearchResults('');
 });
