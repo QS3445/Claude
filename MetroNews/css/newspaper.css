@@ -783,7 +783,11 @@ blockquote::after  { content: '\201D'; }
 .wx-temp { font-size: 1.3rem; font-weight: 700; color: var(--ink); }
 .wx-desc { color: var(--ink-light); font-size: 0.75rem; }
 .wx-details { color: var(--ink-light); font-size: 0.68rem; margin-top: 0.1rem; }
-.wx-tomorrow { color: var(--ink-light); font-size: 0.68rem; }
+.wx-forecast { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.15rem; }
+.wx-day { display: flex; flex-direction: column; align-items: center; min-width: 2.2rem; }
+.wx-day-name { font-size: 0.6rem; font-weight: 700; color: var(--ink-light); text-transform: uppercase; }
+.wx-day-icon { font-size: 0.9rem; line-height: 1.2; }
+.wx-day-temps { font-size: 0.58rem; color: var(--ink-light); white-space: nowrap; }
 .wx-location { color: var(--accent-cnv); font-size: 0.65rem; margin-top: 0.15rem; }
 
 /* === SEARCH === */

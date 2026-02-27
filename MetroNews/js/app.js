@@ -145,7 +145,7 @@ async function loadLiveWeather() {
     '?latitude=49.3154&longitude=-123.0683' +
     '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m' +
     '&daily=temperature_2m_max,temperature_2m_min,weather_code' +
-    '&timezone=America%2FVancouver&forecast_days=2';
+    '&timezone=America%2FVancouver&forecast_days=6';
 
   try {
     const res = await fetch(url);
@@ -166,9 +166,17 @@ async function loadLiveWeather() {
 
     const hiC  = Math.round(daily.temperature_2m_max[0]);
     const loC  = Math.round(daily.temperature_2m_min[0]);
-    const hi2  = Math.round(daily.temperature_2m_max[1]);
-    const lo2  = Math.round(daily.temperature_2m_min[1]);
-    const icon2 = wmoIcon(daily.weather_code[1]);
+
+    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const forecastDays = daily.time.slice(1).map((date, i) => {
+      const idx = i + 1;
+      const d = new Date(date + 'T12:00:00');
+      const name = dayNames[d.getDay()];
+      const hi = Math.round(daily.temperature_2m_max[idx]);
+      const lo = Math.round(daily.temperature_2m_min[idx]);
+      const ic = wmoIcon(daily.weather_code[idx]);
+      return `<div class="wx-day"><span class="wx-day-name">${name}</span><span class="wx-day-icon">${ic}</span><span class="wx-day-temps">H:${hi}&deg; L:${lo}&deg;</span></div>`;
+    }).join('');
 
     widget.innerHTML = `
       <div class="wx-current">
@@ -179,7 +187,7 @@ async function loadLiveWeather() {
       <div class="wx-details">
         Feels ${feelsC}&deg; &bull; H:${hiC}&deg; L:${loC}&deg; &bull; ${windDir} ${windKph}km/h &bull; Hum ${humid}%
       </div>
-      <div class="wx-tomorrow">Tomorrow ${icon2} H:${hi2}&deg; L:${lo2}&deg;</div>
+      <div class="wx-forecast">${forecastDays}</div>
       <div class="wx-location">&#128205; North Vancouver, BC</div>
     `;
   } catch (err) {
@@ -437,6 +445,7 @@ function highlight(text, q) {
 // Initialise on DOM ready
 document.addEventListener('DOMContentLoaded', function () {
   loadLiveWeather();
+  setInterval(loadLiveWeather, 10 * 60 * 1000);
   loadRSSFeeds();
   // Render empty search state
   renderSearchResults('');
