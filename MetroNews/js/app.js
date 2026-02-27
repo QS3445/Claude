@@ -225,27 +225,37 @@ const CORS_PROXIES = [
   u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
 ];
 
-function parseRSSXml(xml) {
-  // Pass 1: remove HTML named entities undefined in XML (&nbsp; &mdash; etc.)
-  // keeping &amp; &lt; &gt; &apos; &quot; and numeric refs like &#160;
-  let clean = xml.replace(/&(?!(amp|lt|gt|apos|quot);|#(\d+|x[\da-fA-F]+);)[a-zA-Z]\w*;/g, '');
-  // Pass 2: escape bare & not part of any valid XML reference
-  // (e.g. "AT&T", "Q&A", "Arts & Culture") — these cause "not well-formed" errors
-  clean = clean.replace(/&(?!(amp|lt|gt|apos|quot);|#(\d+|x[\da-fA-F]+);)/g, '&amp;');
+// Extract a single field from an RSS <item> block.
+// Handles both plain text and CDATA-wrapped values.
+function rssField(block, tag) {
+  const re = new RegExp(
+    `<${tag}[^>]*>\\s*(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?\\s*<\\/${tag}>`, 'i'
+  );
+  const m = block.match(re);
+  if (!m) return '';
+  // Decode the five standard XML entities; strip any remaining tags
+  return m[1]
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/<[^>]+>/g, '')
+    .trim();
+}
 
-  const doc = new DOMParser().parseFromString(clean, 'text/xml');
-  if (doc.querySelector('parsererror')) throw new Error('XML parse error');
-  return Array.from(doc.querySelectorAll('item')).slice(0, 5).map(item => {
-    const linkEl = item.querySelector('link');
-    const link = linkEl?.textContent?.trim() ||
-                 linkEl?.getAttribute('href') ||
-                 item.querySelector('guid')?.textContent?.trim() || '#';
-    return {
-      title:   item.querySelector('title')?.textContent?.trim() || '',
-      link,
-      pubDate: item.querySelector('pubDate')?.textContent || ''
-    };
-  }).filter(i => i.title);
+// Regex-based RSS parser — avoids DOMParser entirely so malformed XML,
+// undefined entities, illegal control characters, etc. never cause failures.
+function parseRSSXml(xml) {
+  const items = [];
+  const itemRe = /<item[\s>]([\s\S]*?)<\/item>/gi;
+  let m;
+  while ((m = itemRe.exec(xml)) !== null) {
+    const block   = m[1];
+    const title   = rssField(block, 'title');
+    const link    = rssField(block, 'link') || rssField(block, 'guid');
+    const pubDate = rssField(block, 'pubDate');
+    if (title) items.push({ title, link: link || '#', pubDate });
+    if (items.length >= 5) break;
+  }
+  return items;
 }
 
 async function fetchFeedItems(feedUrl) {
