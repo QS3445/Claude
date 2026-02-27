@@ -372,6 +372,24 @@ ul { list-style: none; }
   color: var(--accent-cnv);
   padding-right: 0.6rem;
 }
+.meeting-table td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+.meeting-table td:last-child a {
+  font-size: 0.72rem;
+  font-family: var(--sans);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent-cnv);
+  text-decoration: none;
+  border: 1px solid currentColor;
+  padding: 0.1rem 0.35rem;
+  border-radius: 2px;
+  opacity: 0.75;
+}
+.meeting-table td:last-child a:hover { opacity: 1; text-decoration: none; }
 
 .meeting-note {
   font-size: 0.72rem;
