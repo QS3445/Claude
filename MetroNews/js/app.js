@@ -204,7 +204,8 @@ const RSS_FEEDS = [
   {
     label: 'CBC BC',
     color: '#cc0000',
-    url: 'https://www.cbc.ca/cmlink/rss-canada-britishcolumbia'
+    // rss.cbc.ca is the direct RSS subdomain — more proxy-friendly than the cmlink alias
+    url: 'https://rss.cbc.ca/lineup/canada-britishcolumbia.xml'
   },
   {
     label: 'Global BC',
@@ -212,9 +213,10 @@ const RSS_FEEDS = [
     url: 'https://globalnews.ca/bc/feed/'
   },
   {
-    label: 'Vancouver Sun',
-    color: '#1a1a1a',
-    url: 'https://vancouversun.com/feed'
+    label: 'NS News',
+    color: '#1a6b3c',
+    // Vancouver Sun (PostMedia) restricts RSS to subscribers; North Shore News is open and locally relevant
+    url: 'https://www.nsnews.com/feed/'
   }
 ];
 
