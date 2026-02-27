@@ -202,9 +202,9 @@ async function loadLiveWeather() {
 
 const RSS_FEEDS = [
   {
-    label: 'CTV BC',
+    label: 'CBC BC',
     color: '#cc0000',
-    url: 'https://bc.ctvnews.ca/rss/c/1.296383'
+    url: 'https://rss.cbc.ca/lineup/canada-britishcolumbia.xml'
   },
   {
     label: 'Global BC',
@@ -212,9 +212,9 @@ const RSS_FEEDS = [
     url: 'https://globalnews.ca/bc/feed/'
   },
   {
-    label: 'NS News',
+    label: 'City News Van',
     color: '#1a6b3c',
-    url: 'https://www.nsnews.com/feed/'
+    url: 'https://vancouver.citynews.ca/feed/'
   }
 ];
 
