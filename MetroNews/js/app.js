@@ -202,10 +202,9 @@ async function loadLiveWeather() {
 
 const RSS_FEEDS = [
   {
-    label: 'CBC BC',
+    label: 'CTV BC',
     color: '#cc0000',
-    // rss.cbc.ca is the direct RSS subdomain — more proxy-friendly than the cmlink alias
-    url: 'https://rss.cbc.ca/lineup/canada-britishcolumbia.xml'
+    url: 'https://bc.ctvnews.ca/rss/c/1.296383'
   },
   {
     label: 'Global BC',
@@ -215,15 +214,15 @@ const RSS_FEEDS = [
   {
     label: 'NS News',
     color: '#1a6b3c',
-    // Vancouver Sun (PostMedia) restricts RSS to subscribers; North Shore News is open and locally relevant
     url: 'https://www.nsnews.com/feed/'
   }
 ];
 
-// Two CORS proxies tried in order; first success wins.
-// allorigins returns JSON {contents}; codetabs returns raw XML.
+// Three CORS proxies tried in order; first success wins.
+// allorigins returns JSON {contents}; codetabs + corsproxy return raw XML.
 const CORS_PROXIES = [
   u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
   u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
 ];
 
