@@ -197,7 +197,7 @@ async function loadLiveWeather() {
 
 
 // =====================================================
-// === 2. RSS NEWS FEEDS — via rss2json.com        ===
+// === 2. RSS NEWS FEEDS — direct fetch via CORS proxy
 // =====================================================
 
 const RSS_FEEDS = [
@@ -218,7 +218,28 @@ const RSS_FEEDS = [
   }
 ];
 
-const RSS2JSON = 'https://api.rss2json.com/v1/api.json?count=5&rss_url=';
+// Fetch one RSS feed via allorigins.win CORS proxy and parse with DOMParser
+async function fetchFeedItems(feedUrl) {
+  const proxy = 'https://api.allorigins.win/get?url=';
+  const resp = await fetch(proxy + encodeURIComponent(feedUrl));
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const json = await resp.json();
+  if (!json.contents) throw new Error('empty response');
+
+  const doc = new DOMParser().parseFromString(json.contents, 'text/xml');
+  return Array.from(doc.querySelectorAll('item')).slice(0, 5).map(item => {
+    const linkEl = item.querySelector('link');
+    // <link> in XML can store its value as text content or as an href attribute
+    const link = linkEl?.textContent?.trim() ||
+                 linkEl?.getAttribute('href') ||
+                 item.querySelector('guid')?.textContent?.trim() || '#';
+    return {
+      title:   item.querySelector('title')?.textContent?.trim() || '',
+      link,
+      pubDate: item.querySelector('pubDate')?.textContent || ''
+    };
+  }).filter(i => i.title);
+}
 
 async function loadRSSFeeds() {
   const container = document.getElementById('rss-feed-container');
@@ -228,9 +249,7 @@ async function loadRSSFeeds() {
 
   const results = await Promise.allSettled(
     RSS_FEEDS.map(feed =>
-      fetch(RSS2JSON + encodeURIComponent(feed.url))
-        .then(r => r.json())
-        .then(data => ({ feed, data }))
+      fetchFeedItems(feed.url).then(items => ({ feed, items }))
     )
   );
 
@@ -238,12 +257,10 @@ async function loadRSSFeeds() {
   let anySuccess = false;
 
   results.forEach(result => {
-    if (result.status !== 'fulfilled') return;
-    const { feed, data } = result.value;
-    if (data.status !== 'ok' || !data.items?.length) return;
+    if (result.status !== 'fulfilled' || !result.value.items.length) return;
+    const { feed, items } = result.value;
     anySuccess = true;
 
-    const items = data.items.slice(0, 5);
     html += `<div class="rss-column">
       <div class="rss-col-header" style="border-color:${feed.color}">
         <span class="rss-source-dot" style="background:${feed.color}"></span>
