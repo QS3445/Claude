@@ -1,27 +1,66 @@
 /* =====================================================
    North Shore Dispatch — Real Estate Charts
-   Data: REBGV-style benchmark prices & sales, 2025
-   Work in Progress — QS3445/Claude
+   Data: REBGV-style benchmark prices, rolling 12 months
+   Source: REBGV monthly statistical reports (approximate)
+
+   TO UPDATE EACH MONTH:
+     1. Add a new entry to ALL_DATA below (key: 'YYYY-MM')
+     2. Update LATEST_MIX with the new month's sales-type split
+   All charts, labels and titles update automatically.
    ===================================================== */
 
 'use strict';
 
-// ── Monthly labels (Jan–Dec 2025) ──────────────────────
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-// ── Benchmark Prices ($000s) — North Shore 2025 ───────
-// Source approximation: REBGV monthly reports, North Shore composite
-const DATA = {
-  nvDetached:  [2095, 2105, 2145, 2185, 2230, 2195, 2155, 2120, 2100, 2080, 2110, 2130],
-  nvAttached:  [1340, 1355, 1385, 1415, 1435, 1425, 1395, 1370, 1350, 1342, 1362, 1375],
-  nvApartment: [775,  782,  797,  812,  823,  817,  802,  791,  780,  776,  784,  788],
-  wvDetached:  [3710, 3760, 3840, 3920, 3990, 3960, 3890, 3825, 3765, 3745, 3775, 3815],
-  // Monthly sales (combined North Shore City + District + West Van)
-  sales:       [132,  148,  182,  198,  214,  200,  178,  164,  157,  149,  138,  118]
+// ── Monthly data — add one entry per month as published ──
+// Prices in $000s. Source: REBGV monthly reports (approximate).
+// yoy = benchmark price YoY % for North Van Detached
+const ALL_DATA = {
+  '2025-01': { nvDet: 2095, nvAtt: 1340, nvApt: 775,  wvDet: 3710, sales: 132, yoy: '-2.1%' },
+  '2025-02': { nvDet: 2105, nvAtt: 1355, nvApt: 782,  wvDet: 3760, sales: 148, yoy: '-1.8%' },
+  '2025-03': { nvDet: 2145, nvAtt: 1385, nvApt: 797,  wvDet: 3840, sales: 182, yoy: '+0.3%' },
+  '2025-04': { nvDet: 2185, nvAtt: 1415, nvApt: 812,  wvDet: 3920, sales: 198, yoy: '+1.2%' },
+  '2025-05': { nvDet: 2230, nvAtt: 1435, nvApt: 823,  wvDet: 3990, sales: 214, yoy: '+2.4%' },
+  '2025-06': { nvDet: 2195, nvAtt: 1425, nvApt: 817,  wvDet: 3960, sales: 200, yoy: '+1.9%' },
+  '2025-07': { nvDet: 2155, nvAtt: 1395, nvApt: 802,  wvDet: 3890, sales: 178, yoy: '+0.8%' },
+  '2025-08': { nvDet: 2120, nvAtt: 1370, nvApt: 791,  wvDet: 3825, sales: 164, yoy: '+0.1%' },
+  '2025-09': { nvDet: 2100, nvAtt: 1350, nvApt: 780,  wvDet: 3765, sales: 157, yoy: '-0.5%' },
+  '2025-10': { nvDet: 2080, nvAtt: 1342, nvApt: 776,  wvDet: 3745, sales: 149, yoy: '-1.1%' },
+  '2025-11': { nvDet: 2110, nvAtt: 1362, nvApt: 784,  wvDet: 3775, sales: 138, yoy: '+0.4%' },
+  '2025-12': { nvDet: 2130, nvAtt: 1375, nvApt: 788,  wvDet: 3815, sales: 118, yoy: '+0.7%' },
+  '2026-01': { nvDet: 2145, nvAtt: 1378, nvApt: 790,  wvDet: 3830, sales: 128, yoy: '+2.4%' },
+  // '2026-02': { nvDet: ????,  nvAtt: ????,  nvApt: ???,  wvDet: ????, sales: ???, yoy: '???%' },
 };
 
-// YoY change labels for each month (approximate % vs 2024)
-const YOY_NV = ['-2.1%','-1.8%','+0.3%','+1.2%','+2.4%','+1.9%','+0.8%','+0.1%','-0.5%','-1.1%','+0.4%','+0.7%'];
+// Sales mix % for latest available month — update alongside ALL_DATA
+// [Detached %, Attached/Townhouse %, Apartment/Condo %]
+const LATEST_MIX = { pct: [38, 22, 40] };
+
+// ── Derive rolling 12-month window ─────────────────────
+const WINDOW   = 12;
+const _allKeys = Object.keys(ALL_DATA).sort();
+const _keys    = _allKeys.slice(-WINDOW);
+const _rows    = _keys.map(k => ALL_DATA[k]);
+
+// Label format: "Mon 'YY" when window spans >1 year, else "Mon"
+const _years   = new Set(_keys.map(k => k.slice(0, 4)));
+const _MON     = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function monthLabel(key) {
+  const [yr, mo] = key.split('-');
+  const name = _MON[+mo - 1];
+  return _years.size > 1 ? `${name} '${yr.slice(2)}` : name;
+}
+
+const LABELS      = _keys.map(monthLabel);
+const firstLabel  = LABELS[0];
+const lastLabel   = LABELS[LABELS.length - 1];
+
+// Data arrays
+const nvDetached  = _rows.map(r => r.nvDet);
+const nvAttached  = _rows.map(r => r.nvAtt);
+const nvApartment = _rows.map(r => r.nvApt);
+const wvDetached  = _rows.map(r => r.wvDet);
+const sales       = _rows.map(r => r.sales);
+const yoyLabels   = _rows.map(r => r.yoy);
 
 // ── Chart defaults ─────────────────────────────────────
 Chart.defaults.font.family = "'Helvetica Neue', Arial, sans-serif";
@@ -41,11 +80,11 @@ function initPriceChart() {
   new Chart(canvas, {
     type: 'line',
     data: {
-      labels: MONTHS,
+      labels: LABELS,
       datasets: [
         {
           label: 'Detached — North Van',
-          data: DATA.nvDetached,
+          data: nvDetached,
           borderColor: '#00529b',
           backgroundColor: 'rgba(0,82,155,0.08)',
           borderWidth: 2.5,
@@ -55,7 +94,7 @@ function initPriceChart() {
         },
         {
           label: 'Detached — West Van',
-          data: DATA.wvDetached,
+          data: wvDetached,
           borderColor: '#8b1a1a',
           backgroundColor: 'rgba(139,26,26,0.06)',
           borderWidth: 2.5,
@@ -65,7 +104,7 @@ function initPriceChart() {
         },
         {
           label: 'Attached — North Van',
-          data: DATA.nvAttached,
+          data: nvAttached,
           borderColor: '#2a7a3b',
           backgroundColor: 'rgba(42,122,59,0.07)',
           borderWidth: 2,
@@ -76,7 +115,7 @@ function initPriceChart() {
         },
         {
           label: 'Apartment — North Van',
-          data: DATA.nvApartment,
+          data: nvApartment,
           borderColor: '#c8992a',
           backgroundColor: 'rgba(200,153,42,0.07)',
           borderWidth: 2,
@@ -103,7 +142,7 @@ function initPriceChart() {
         },
         title: {
           display: true,
-          text: 'North Shore Benchmark Prices — Jan to Dec 2025',
+          text: `North Shore Benchmark Prices — ${firstLabel} to ${lastLabel}`,
           font: { size: 13, weight: '700' },
           color: '#1a1a1a',
           padding: { bottom: 12 }
@@ -129,18 +168,17 @@ function initSalesChart() {
   const canvas = document.getElementById('chart-sales');
   if (!canvas) return;
 
+  const peakSales = Math.max(...sales);
+
   new Chart(canvas, {
     type: 'bar',
     data: {
-      labels: MONTHS,
+      labels: LABELS,
       datasets: [
         {
           label: 'Properties Sold — North Shore',
-          data: DATA.sales,
-          backgroundColor: MONTHS.map((_, i) => {
-            // Highlight peak months
-            return DATA.sales[i] >= 195 ? 'rgba(0,82,155,0.85)' : 'rgba(0,82,155,0.45)';
-          }),
+          data: sales,
+          backgroundColor: sales.map(v => v >= peakSales * 0.9 ? 'rgba(0,82,155,0.85)' : 'rgba(0,82,155,0.45)'),
           borderColor: '#00529b',
           borderWidth: 1.5,
           borderRadius: 3
@@ -154,7 +192,7 @@ function initSalesChart() {
         legend: { display: false },
         title: {
           display: true,
-          text: 'Monthly Sales Volume — North Shore Combined, 2025',
+          text: `Monthly Sales Volume — North Shore, ${firstLabel} to ${lastLabel}`,
           font: { size: 13, weight: '700' },
           color: '#1a1a1a',
           padding: { bottom: 12 }
@@ -162,7 +200,7 @@ function initSalesChart() {
         tooltip: {
           callbacks: {
             label: ctx => `  ${ctx.parsed.y} sales`,
-            afterLabel: ctx => `  YoY: ${YOY_NV[ctx.dataIndex]}`
+            afterLabel: ctx => `  YoY: ${yoyLabels[ctx.dataIndex]}`
           }
         }
       },
@@ -189,7 +227,7 @@ function initMixChart() {
     data: {
       labels: ['Detached', 'Attached / Townhouse', 'Apartment / Condo'],
       datasets: [{
-        data: [38, 22, 40],
+        data: LATEST_MIX.pct,
         backgroundColor: ['#00529b', '#2a7a3b', '#c8992a'],
         borderColor: '#faf8f3',
         borderWidth: 3,
@@ -206,7 +244,7 @@ function initMixChart() {
         },
         title: {
           display: true,
-          text: 'Sales Mix by Type — North Van, Dec 2025',
+          text: `Sales Mix by Type — North Van, ${lastLabel}`,
           font: { size: 12, weight: '700' },
           color: '#1a1a1a',
           padding: { bottom: 10 }
