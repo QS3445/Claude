@@ -2,11 +2,12 @@
 
 import { useRouter } from "next/navigation"
 import { ForecastSlider } from "@/components/questions/ForecastSlider"
+import type { SerializedForecast } from "@/lib/serializers"
 
 interface Props {
   questionId: string
   questionTitle: string
-  latestForecast: { probability: unknown } | null
+  latestForecast: Pick<SerializedForecast, "probability"> | null
 }
 
 export function ForecastSliderServer({ questionId, questionTitle, latestForecast }: Props) {
@@ -27,7 +28,7 @@ export function ForecastSliderServer({ questionId, questionTitle, latestForecast
     <ForecastSlider
       questionId={questionId}
       questionTitle={questionTitle}
-      initialProbability={latestForecast ? Number(latestForecast.probability) : undefined}
+      initialProbability={latestForecast?.probability}
       onSubmit={handleSubmit}
     />
   )

@@ -3,6 +3,7 @@ import { formatDistanceToNow } from "date-fns"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { formatPercent } from "@/lib/utils"
+import type { SerializedForecastSnippet } from "@/lib/serializers"
 
 type StatusVariant = "default" | "secondary" | "outline" | "success" | "warning" | "destructive"
 
@@ -29,16 +30,15 @@ interface Props {
     title: string
     category: string
     status: string
-    deadline: Date | null
-    createdAt: Date
+    deadline: Date | string | null
+    createdAt: Date | string
     _count: { forecasts: number }
-    forecasts?: Array<{ probability: unknown }>
+    forecasts?: SerializedForecastSnippet[]
   }
 }
 
 export function QuestionCard({ question }: Props) {
-  const latestProb = question.forecasts?.[0]?.probability
-  const probability = latestProb ? Number(latestProb) : null
+  const probability = question.forecasts?.[0]?.probability ?? null
 
   return (
     <Link href={`/questions/${question.id}`}>

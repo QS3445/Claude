@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { StatsCard } from "@/components/dashboard/StatsCard"
 import { QuestionCard } from "@/components/questions/QuestionCard"
+import { serializeForecastSnippets } from "@/lib/serializers"
 
 export default async function DashboardPage() {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -71,7 +72,10 @@ export default async function DashboardPage() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {recentQuestions.map((q) => (
-              <QuestionCard key={q.id} question={q} />
+              <QuestionCard
+                key={q.id}
+                question={{ ...q, forecasts: serializeForecastSnippets(q.forecasts) }}
+              />
             ))}
           </div>
         )}

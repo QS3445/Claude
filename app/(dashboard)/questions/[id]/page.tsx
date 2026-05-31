@@ -2,6 +2,7 @@ import { headers } from "next/headers"
 import { notFound, redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { serializeForecasts } from "@/lib/serializers"
 import { ForecastSliderServer } from "./ForecastSliderServer"
 import { ForecastHistory } from "@/components/questions/ForecastHistory"
 import { ConsensusPanel } from "@/components/consensus/ConsensusPanel"
@@ -48,6 +49,10 @@ export default async function QuestionPage({
   const userScore = await prisma.score.findUnique({
     where: { questionId_userId: { questionId: id, userId: session.user.id } },
   })
+
+  // Serialize before crossing the server→client boundary.
+  // Prisma Decimal and Date instances cannot be passed as RSC props.
+  const serializedForecasts = serializeForecasts(forecasts)
 
   const canForecast = question.status === "OPEN"
   const showConsensus = question.visibility !== "PRIVATE"
@@ -133,12 +138,12 @@ export default async function QuestionPage({
           <ForecastSliderServer
             questionId={id}
             questionTitle={question.title}
-            latestForecast={forecasts.at(-1) ?? null}
+            latestForecast={serializedForecasts.at(-1) ?? null}
           />
         </div>
       )}
 
-      {forecasts.length > 0 && <ForecastHistory forecasts={forecasts} />}
+      {serializedForecasts.length > 0 && <ForecastHistory forecasts={serializedForecasts} />}
 
       {isAuthor && ["OPEN", "CLOSED"].includes(question.status) && (
         <div className="border-t pt-4">

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma"
 import { QuestionCard } from "@/components/questions/QuestionCard"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
+import { serializeForecastSnippets } from "@/lib/serializers"
 
 export default async function QuestionsPage({
   searchParams,
@@ -56,7 +57,10 @@ export default async function QuestionsPage({
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {questions.map((q) => (
-            <QuestionCard key={q.id} question={q} />
+            <QuestionCard
+              key={q.id}
+              question={{ ...q, forecasts: serializeForecastSnippets(q.forecasts) }}
+            />
           ))}
         </div>
       )}

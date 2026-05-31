@@ -98,7 +98,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
 
       // 5. Update calibration cache for each forecaster
-      const affectedUserIds = [...new Set(finalForecasts.map((f) => f.userId))]
+      const affectedUserIds = Array.from(new Set(finalForecasts.map((f) => f.userId)))
       for (const userId of affectedUserIds) {
         await updateCalibrationCache(tx, userId, questionId, outcome)
       }

@@ -1,13 +1,8 @@
 import { formatDistanceToNow } from "date-fns"
 import { formatPercent } from "@/lib/utils"
+import type { SerializedForecast } from "@/lib/serializers"
 
-interface ForecastEntry {
-  id: string
-  probability: unknown
-  reasoning: string
-  createdAt: Date
-  isFinal: boolean
-}
+type ForecastEntry = Pick<SerializedForecast, "id" | "probability" | "reasoning" | "isFinal" | "createdAt">
 
 interface Props {
   forecasts: ForecastEntry[]
