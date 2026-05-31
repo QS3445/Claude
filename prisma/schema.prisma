@@ -1,0 +1,409 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Category {
+  TECHNOLOGY
+  BUSINESS
+  POLITICS
+  SCIENCE
+  PERSONAL
+  UNCATEGORIZED
+}
+
+// DRAFT → OPEN → CLOSED → RESOLVED | AMBIGUOUS
+// OPEN can also transition directly to RESOLVED | AMBIGUOUS (early resolution)
+enum QuestionStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  RESOLVED
+  AMBIGUOUS
+}
+
+enum QuestionVisibility {
+  PRIVATE
+  UNLISTED
+  PUBLIC
+}
+
+// AMBIGUOUS here means the outcome was genuinely indeterminate (not a scoring outcome)
+enum Resolution {
+  YES
+  NO
+  AMBIGUOUS
+}
+
+// ─── Better Auth ──────────────────────────────────────────────────────────────
+// Better Auth owns these four models and requires lowercase table names.
+// Column names must not be changed — Better Auth references them by convention.
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Better Auth relations
+  sessions Session[]
+  accounts Account[]
+
+  // App relations
+  profile           Profile?
+  authoredQuestions Question[]         @relation("QuestionAuthor")
+  resolvedQuestions Question[]         @relation("QuestionResolver")
+  forecasts         Forecast[]
+  scores            Score[]
+  resolutionSources ResolutionSource[]
+  tags              Tag[]
+  calibrationCache  CalibrationCache[]
+  calibrationScore  CalibrationScore?
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([providerId, accountId])
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ─── Profile ──────────────────────────────────────────────────────────────────
+// Separates public-facing identity from the auth User record.
+// isPublic controls whether the profile appears on leaderboards and category pages.
+
+model Profile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  username  String   @unique
+  bio       String?
+  isPublic  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("profile")
+}
+
+// ─── Question ─────────────────────────────────────────────────────────────────
+// Core forecasting unit. Status follows the machine: DRAFT → OPEN → CLOSED →
+// RESOLVED | AMBIGUOUS. Soft-deleted via deletedAt; exclude from all queries
+// with a `WHERE deleted_at IS NULL` filter or Prisma `where: { deletedAt: null }`.
+
+model Question {
+  id                 String             @id @default(cuid())
+  authorId           String
+  author             User               @relation("QuestionAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+
+  title              String
+  description        String
+  resolutionCriteria String
+
+  category           Category           @default(UNCATEGORIZED)
+  status             QuestionStatus     @default(DRAFT)
+  visibility         QuestionVisibility @default(PRIVATE)
+
+  // null is only valid in DRAFT status; required before OPEN transition
+  deadline           DateTime?
+
+  // Populated only when status transitions to RESOLVED or AMBIGUOUS
+  resolution         Resolution?
+  resolutionNote     String?
+  resolvedAt         DateTime?
+  resolvedById       String?
+  resolvedBy         User?              @relation("QuestionResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  // Soft delete — hard deletes are not performed; filter deletedAt IS NULL everywhere
+  deletedAt          DateTime?
+
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  forecasts          Forecast[]
+  scores             Score[]
+  consensusSnapshots ConsensusSnapshot[]
+  resolutionSources  ResolutionSource[]
+  questionTags       QuestionTag[]
+  brief              ForecastingBrief?
+
+  @@index([authorId])
+  @@index([category])
+  @@index([status])
+  @@index([visibility])
+  @@index([deadline])
+  @@index([deletedAt])
+  // Composite index for the primary feed query: active public non-deleted questions
+  @@index([status, visibility, deletedAt])
+  @@map("question")
+}
+
+// ─── Forecast ─────────────────────────────────────────────────────────────────
+// Append-only. Never UPDATE a forecast row — always INSERT a new one.
+// isFinal is set by the cron job the moment a question transitions OPEN → CLOSED.
+// Scoring uses only isFinal = true rows, not the probability at resolution time.
+// probability is stored as a 4-decimal fraction (0.0001–0.9999); 0 and 1 are
+// forbidden because log score is undefined at the boundaries.
+
+model Forecast {
+  id          String   @id @default(cuid())
+  questionId  String
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // 0.0001–0.9999; enforced at app layer — never store raw integer percentages
+  probability Decimal  @db.Decimal(5, 4)
+  reasoning   String
+
+  // Set true by cron on OPEN → CLOSED transition; used as final probability for scoring
+  isFinal     Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+
+  @@index([questionId])
+  @@index([userId])
+  @@index([questionId, userId])
+  @@index([questionId, createdAt])
+  @@index([questionId, isFinal])
+  @@map("forecast")
+}
+
+// ─── Score ────────────────────────────────────────────────────────────────────
+// One row per (question, user) pair. Written when a question is resolved.
+// finalProbability is copied from the isFinal Forecast row at resolution time.
+// AMBIGUOUS resolutions produce no Score row — they are not scored.
+
+model Score {
+  id               String     @id @default(cuid())
+  questionId       String
+  question         Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Brier: (finalProbability - outcome)² where outcome is 1.0 (YES) or 0.0 (NO)
+  brierScore       Decimal    @db.Decimal(8, 6)
+  // Log: ln(finalProbability) if YES, ln(1 - finalProbability) if NO
+  logScore         Decimal    @db.Decimal(8, 6)
+  finalProbability Decimal    @db.Decimal(5, 4)
+  resolution       Resolution
+
+  computedAt       DateTime   @default(now())
+
+  @@unique([questionId, userId])
+  @@index([userId])
+  @@index([userId, computedAt])
+  @@map("score")
+}
+
+// ─── Forecasting Brief ────────────────────────────────────────────────────────
+// AI-generated research brief, cached once per question.
+// Generated lazily on first user request; served from cache thereafter.
+// Does NOT include a recommended probability — only surfacing considerations.
+// historicalExamples: Array<{ title: string; outcome: string; probability: number }>
+// keyAssumptions:     string[]
+
+model ForecastingBrief {
+  id                String   @id @default(cuid())
+  questionId        String   @unique
+  question          Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  baseRateEstimate  Decimal  @db.Decimal(5, 4)
+  baseRateReasoning String
+  historicalExamples Json
+  keyAssumptions    Json
+  bullCase          String
+  bearCase          String
+
+  // Track which model version generated the brief for quality auditing
+  modelVersion      String
+  generatedAt       DateTime @default(now())
+
+  @@map("forecasting_brief")
+}
+
+// ─── Consensus Snapshot ───────────────────────────────────────────────────────
+// Append-only time series. One row is written per forecast submission on a
+// PUBLIC or UNLISTED question. Never updated. Powers the community consensus
+// chart and the current consensus panel. Weighted probability uses inverse
+// Brier score weighting; new users receive weight = 1/(0.25 + 0.01).
+
+model ConsensusSnapshot {
+  id                  String   @id @default(cuid())
+  questionId          String
+  question            Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  forecastCount       Int
+  meanProbability     Decimal  @db.Decimal(5, 4)
+  medianProbability   Decimal  @db.Decimal(5, 4)
+  weightedProbability Decimal  @db.Decimal(5, 4)
+
+  computedAt          DateTime @default(now())
+
+  @@index([questionId])
+  @@index([questionId, computedAt])
+  @@map("consensus_snapshot")
+}
+
+// ─── Resolution Source ────────────────────────────────────────────────────────
+// Evidence used to resolve a question. Required for PUBLIC and UNLISTED questions.
+// excerpt is mandatory for public questions — URLs rot; the excerpt is permanent.
+
+model ResolutionSource {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  addedById  String
+  addedBy    User     @relation(fields: [addedById], references: [id], onDelete: Restrict)
+
+  url        String
+  title      String
+  // Stores the relevant quote from the source — survives link rot and paywalls
+  excerpt    String?
+
+  createdAt  DateTime @default(now())
+
+  @@index([questionId])
+  @@map("resolution_source")
+}
+
+// ─── Tag ──────────────────────────────────────────────────────────────────────
+// User-scoped personal labels for private organization.
+// Distinct from Category (platform-defined); tags are never used for public routing.
+
+model Tag {
+  id           String       @id @default(cuid())
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  color        String       @default("#6366f1")
+  createdAt    DateTime     @default(now())
+
+  questionTags QuestionTag[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("tag")
+}
+
+model QuestionTag {
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  tagId      String
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@id([questionId, tagId])
+  @@map("question_tag")
+}
+
+// ─── Calibration Cache ────────────────────────────────────────────────────────
+// Materialized calibration bins. One row per user per bucket (10 bins, midpoints
+// 0.05 → 0.95). Recomputed after every question resolution. Powers calibration
+// charts without scanning the full forecast history on every render.
+// resolutionCount = number of forecasts in this bucket that resolved YES.
+
+model CalibrationCache {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Bucket midpoint: 0.05 | 0.15 | 0.25 | 0.35 | 0.45 | 0.55 | 0.65 | 0.75 | 0.85 | 0.95
+  bucket          Decimal  @db.Decimal(3, 2)
+  forecastCount   Int
+  resolutionCount Int
+
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, bucket])
+  @@index([userId])
+  @@map("calibration_cache")
+}
+
+// ─── Calibration Score ────────────────────────────────────────────────────────
+// Aggregate calibration quality: 1.0 = perfect, 0.0 = maximally miscalibrated.
+// Computed from CalibrationCache after each resolution. Requires bucketCount >= 5
+// to be considered valid; below that the score is stored but not displayed.
+// Formula: 1 - (mean_squared_deviation / 0.25), clamped to [0, 1].
+
+model CalibrationScore {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  score       Decimal  @db.Decimal(8, 6)
+  // Number of non-empty calibration bins used; score is invalid if bucketCount < 5
+  bucketCount Int
+
+  computedAt  DateTime @default(now())
+
+  @@map("calibration_score")
+}
+
+// ─── Category Stats ───────────────────────────────────────────────────────────
+// Materialized per-category aggregates refreshed by cron every 15 minutes.
+// Prevents expensive COUNT queries on every category page render.
+// avgBrierScore is null when no questions in the category have been resolved.
+
+model CategoryStats {
+  id              String   @id @default(cuid())
+  category        Category @unique
+  totalQuestions  Int      @default(0)
+  activeQuestions Int      @default(0)
+  totalForecasts  Int      @default(0)
+  avgBrierScore   Decimal? @db.Decimal(8, 6)
+  updatedAt       DateTime @updatedAt
+
+  @@map("category_stats")
+}
