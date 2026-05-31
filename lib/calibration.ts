@@ -3,7 +3,7 @@ export const CALIBRATION_BUCKETS = [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.
 
 export function probabilityToBucket(p: number): number {
   const bin = Math.floor(p * 10) / 10
-  return Math.min(0.9, bin) + 0.05
+  return Math.round((Math.min(0.9, bin) + 0.05) * 100) / 100
 }
 
 export interface CalibrationPoint {
